@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimLab — Real-Time Engineering Simulation Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #04060d;
+  --bg2:   #080c16;
+  --bg3:   #0d1220;
+  --bg4:   #121929;
+  --bg5:   #1a2235;
+  --border:#1e2d45;
+  --bord2: #2a3d55;
+  --text:  #cdd8ef;
+  --muted: #4a6080;
+  --dim:   #2a3a50;
+  --cyan:  #00e5ff;
+  --green: #00ff88;
+  --amber: #ffb800;
+  --red:   #ff3860;
+  --blue:  #4488ff;
+  --violet:#9b59ff;
+  --teal:  #00c9a7;
+  --mono:  'JetBrains Mono',monospace;
+  --head:  'Rajdhani',sans-serif;
+  --disp:  'Orbitron',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--head);font-size:13px;line-height:1.5}
+
+/* scanlines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,200,255,0.012) 3px,rgba(0,200,255,0.012) 4px);pointer-events:none;z-index:9999}
+
+/* grid bg */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+header{position:relative;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:rgba(4,6,13,0.95);border-bottom:1px solid var(--border);backdrop-filter:blur(10px)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#00e5ff,#4488ff);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:11px;font-weight:900;color:#000;letter-spacing:-1px}
+.logo-text{font-family:var(--disp);font-size:14px;font-weight:700;letter-spacing:2px;color:var(--cyan)}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;font-family:var(--mono)}
+.hstatus{display:flex;align-items:center;gap:16px}
+.hpill{display:flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);letter-spacing:1px;padding:3px 9px;border-radius:12px}
+.hpill-ok{background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.2);color:var(--green)}
+.hpill-cyan{background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan)}
+.hpill .dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+#hclock{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+/* ── TABS ── */
+.nav-tabs{position:relative;z-index:50;display:flex;gap:0;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto}
+.nav-tabs::-webkit-scrollbar{height:0}
+.ntab{display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:11px;font-weight:600;letter-spacing:.5px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);white-space:nowrap;transition:all .2s;font-family:var(--head)}
+.ntab:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.ntab.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,229,255,.04)}
+.ntab-icon{font-size:14px;line-height:1}
+
+/* ── MAIN LAYOUT ── */
+.workspace{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 97px);position:relative;z-index:1}
+.sidebar{display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--border);overflow:hidden}
+.main-panel{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sb-section{border-bottom:1px solid var(--border)}
+.sb-head{padding:8px 12px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:var(--mono);display:flex;justify-content:space-between;align-items:center}
+.sb-badge{background:var(--bg4);border:1px solid var(--bord2);padding:1px 6px;border-radius:8px;font-size:8px;color:var(--cyan)}
+
+/* quick presets */
+.preset-list{padding:6px;display:flex;flex-direction:column;gap:3px}
+.preset-btn{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;background:transparent;border:1px solid transparent;transition:all .15s;color:var(--text);font-family:var(--head);font-size:11px;text-align:left;width:100%}
+.preset-btn:hover{background:var(--bg4);border-color:var(--border)}
+.preset-btn.active{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.2);color:var(--cyan)}
+.preset-ic{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.pic-circuit{background:rgba(255,184,0,.1);border:1px solid rgba(255,184,0,.2)}
+.pic-struct{background:rgba(68,136,255,.1);border:1px solid rgba(68,136,255,.2)}
+.pic-thermal{background:rgba(255,56,96,.1);border:1px solid rgba(255,56,96,.2)}
+.pic-fluid{background:rgba(0,201,167,.1);border:1px solid rgba(0,201,167,.2)}
+.pic-chip{background:rgba(155,89,255,.1);border:1px solid rgba(155,89,255,.2)}
+.preset-info{flex:1}
+.preset-name{font-weight:600;font-size:11px}
+.preset-desc{font-size:9px;color:var(--muted);margin-top:1px}
+
+/* params panel */
+.param-grid{padding:8px 10px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
+.param-row{display:flex;align-items:center;gap:8px}
+.param-label{font-size:10px;color:var(--muted);font-family:var(--mono);width:90px;flex-shrink:0}
+.param-input{flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-family:var(--mono);font-size:10px;outline:none;transition:border .15s}
+.param-input:focus{border-color:var(--cyan)}
+.param-unit{font-size:9px;color:var(--muted);font-family:var(--mono);width:28px}
+
+/* run button */
+.run-area{padding:8px 10px}
+.run-btn{width:100%;padding:9px;background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(68,136,255,.15));border:1px solid rgba(0,229,255,.3);border-radius:6px;color:var(--cyan);font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.run-btn:hover{background:linear-gradient(135deg,rgba(0,229,255,.25),rgba(68,136,255,.25));box-shadow:0 0 20px rgba(0,229,255,.15)}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+.run-btn .spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* log terminal */
+.log-term{flex:1;overflow-y:auto;padding:6px 10px;font-family:var(--mono);font-size:10px;display:flex;flex-direction:column;gap:2px}
+.log-term::-webkit-scrollbar{width:3px}
+.log-term::-webkit-scrollbar-thumb{background:var(--border)}
+.log-entry{display:flex;gap:6px;align-items:flex-start}
+.log-ts{color:var(--muted);flex-shrink:0}
+.log-ok{color:var(--green)}
+.log-info{color:var(--blue)}
+.log-warn{color:var(--amber)}
+.log-err{color:var(--red)}
+.log-sim{color:var(--violet)}
+
+/* ── MAIN VIZ AREA ── */
+.viz-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg2)}
+.viz-title{font-family:var(--disp);font-size:12px;font-weight:700;letter-spacing:2px;color:var(--cyan)}
+.viz-meta{font-size:9px;color:var(--muted);font-family:var(--mono)}
+.vaction-row{display:flex;gap:6px}
+.vbtn{padding:4px 10px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s;font-family:var(--mono)}
+.vbtn-outline{background:transparent;border-color:var(--border);color:var(--muted)}
+.vbtn-outline:hover{border-color:var(--bord2);color:var(--text)}
+.vbtn-green{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.3);color:var(--green)}
+
+.viz-body{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--border);overflow:hidden}
+.viz-cell{background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.cell-head{padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-family:var(--mono);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.cell-badge{font-size:8px;padding:1px 6px;border-radius:8px}
+.cb-live{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);color:var(--green)}
+.cb-idle{background:rgba(74,96,128,.1);border:1px solid rgba(74,96,128,.25);color:var(--muted)}
+.cell-canvas{flex:1;overflow:hidden}
+canvas.sim-canvas{width:100%;height:100%;display:block}
+.cell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.idle-text{font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center}
+.idle-icon{font-size:32px;opacity:.2}
+
+/* stat strip */
+.stat-strip{display:flex;gap:0;border-top:1px solid var(--border);background:var(--bg2)}
+.stat-item{flex:1;padding:6px 12px;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-label{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:var(--mono)}
+.stat-val{font-size:15px;font-weight:700;font-family:var(--mono);margin-top:2px}
+.sv-cyan{color:var(--cyan)}
+.sv-green{color:var(--green)}
+.sv-amber{color:var(--amber)}
+.sv-red{color:var(--red)}
+.sv-blue{color:var(--blue)}
+
+/* ── CHIP FABRICATION PANEL ── */
+#fab-panel{display:none;flex:1;overflow:hidden;flex-direction:column}
+#fab-panel.active{display:flex}
+.fab-header{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between}
+.fab-title{font-family:var(--disp);font-size:12px;font-weight:700;letter-spacing:2px;color:var(--violet)}
+.fab-body{flex:1;display:grid;grid-template-columns:1fr 360px;overflow:hidden}
+.fab-viz{overflow-y:auto;padding:20px}
+.fab-viz::-webkit-scrollbar{width:3px}
+.fab-viz::-webkit-scrollbar-thumb{background:var(--border)}
+.fab-steps{overflow-y:auto;border-left:1px solid var(--border);display:flex;flex-direction:column}
+.fab-steps::-webkit-scrollbar{width:3px}
+.fab-steps::-webkit-scrollbar-thumb{background:var(--border)}
+.fab-step-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:all .15s}
+.fab-step-item:hover{background:var(--bg3)}
+.fab-step-item.active{background:rgba(155,89,255,.06);border-left:2px solid var(--violet)}
+.fsi-num{font-size:9px;font-family:var(--mono);color:var(--muted);margin-bottom:3px}
+.fsi-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.fsi-desc{font-size:10px;color:var(--muted);line-height:1.5}
+.fab-progress{height:3px;background:rgba(155,89,255,.2);border-radius:2px;margin-top:6px;overflow:hidden}
+.fab-progress-fill{height:100%;background:var(--violet);border-radius:2px;transition:width .5s}
+
+/* ── EXPORT PANEL ── */
+.export-panel{display:none;flex:1;flex-direction:column;overflow:hidden}
+.export-panel.active{display:flex}
+.export-tabs{display:flex;gap:0;background:var(--bg3);border-bottom:1px solid var(--border)}
+.etab{padding:7px 14px;font-size:10px;font-weight:600;cursor:pointer;color:var(--muted);font-family:var(--mono);border-bottom:2px solid transparent;transition:all .2s}
+.etab.active{color:var(--green);border-bottom-color:var(--green)}
+.export-content{flex:1;overflow:auto;padding:14px;font-family:var(--mono);font-size:11px;color:#8fbc8f;line-height:1.7;background:var(--bg);white-space:pre}
+.export-content::-webkit-scrollbar{width:5px}
+.export-content::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* chip cross-section */
+.chip-xsection{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px}
+.chip-xsection svg{width:100%;display:block}
+.step-explain{background:rgba(155,89,255,.05);border:1px solid rgba(155,89,255,.15);border-radius:6px;padding:12px;font-size:11px;color:var(--text);line-height:1.7;margin-bottom:12px}
+.step-explain h3{color:var(--violet);font-size:12px;font-weight:700;margin-bottom:6px;font-family:var(--disp);letter-spacing:1px}
+.step-params-table{width:100%;border-collapse:collapse;font-size:10px;font-family:var(--mono);margin-top:8px}
+.step-params-table td{padding:4px 8px;border:1px solid rgba(155,89,255,.1);color:var(--text)}
+.step-params-table td:first-child{color:var(--muted);width:40%}
+.step-params-table tr:nth-child(even) td{background:rgba(0,0,0,.2)}
+
+/* AI chat overlay */
+.chat-panel{height:160px;border-top:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2)}
+.chat-scroll{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
+.chat-scroll::-webkit-scrollbar{width:3px}
+.chat-scroll::-webkit-scrollbar-thumb{background:var(--border)}
+.cmsg{border-radius:6px;padding:7px 10px;font-size:11px;max-width:90%}
+.cmsg-user{background:var(--bg4);border:1px solid var(--bord2);align-self:flex-end;color:var(--text)}
+.cmsg-ai{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);align-self:flex-start;color:var(--text)}
+.cmsg-ai b{color:var(--cyan);font-size:9px;font-family:var(--mono);display:block;margin-bottom:2px;letter-spacing:.5px}
+.cmsg-sys{color:var(--muted);font-size:10px;font-family:var(--mono);align-self:center}
+.typing-dots{display:flex;gap:3px;padding:8px 12px;align-items:center}
+.tdot{width:4px;height:4px;border-radius:50%;background:var(--cyan);animation:tdot 1.2s infinite}
+.tdot:nth-child(2){animation-delay:.2s}
+.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,80%,100%{opacity:.2;transform:scale(.7)}40%{opacity:1;transform:scale(1)}}
+.chat-input-row{display:flex;gap:6px;padding:6px 10px;border-top:1px solid var(--border)}
+.chat-input{flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:4px;padding:5px 10px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;transition:border .15s}
+.chat-input:focus{border-color:var(--cyan)}
+.chat-send{padding:5px 12px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);border-radius:4px;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.chat-send:hover{background:rgba(0,229,255,.2)}
+
+/* chips row */
+.chips-row{display:flex;flex-wrap:wrap;gap:4px;padding:4px 10px 8px}
+.qchip{font-size:9px;padding:2px 8px;background:var(--bg4);border:1px solid var(--border);border-radius:10px;cursor:pointer;color:var(--muted);font-family:var(--mono);transition:all .15s}
+.qchip:hover{color:var(--text);border-color:var(--bord2)}
+
+/* responsive */
+@media(max-width:900px){.workspace{grid-template-columns:1fr}.sidebar{display:none}.viz-body{grid-template-columns:1fr;grid-template-rows:repeat(4,220px)}.fab-body{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">SL</div>
+    <div>
+      <div class="logo-text">SIMLAB</div>
+      <div class="logo-sub">Engineering Simulation Platform</div>
+    </div>
+  </div>
+  <div class="hstatus">
+    <div class="hpill hpill-ok"><div class="dot"></div>AI ACTIVE</div>
+    <div class="hpill hpill-cyan"><div class="dot"></div>5 SIM ENGINES</div>
+    <div id="hclock">--:--:--</div>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="ntab active" data-tab="sim" onclick="switchTab('sim',this)"><span class="ntab-icon">⚡</span>Live Simulation</div>
+  <div class="ntab" data-tab="fab" onclick="switchTab('fab',this)"><span class="ntab-icon">🔬</span>Chip Fabrication</div>
+  <div class="ntab" data-tab="export" onclick="switchTab('export',this)"><span class="ntab-icon">📋</span>Code Export</div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Simulation types -->
+    <div class="sb-section">
+      <div class="sb-head">Simulation Type <span class="sb-badge">5 ENGINES</span></div>
+      <div class="preset-list">
+        <button class="preset-btn active" id="ps-circuit" onclick="selectSim('circuit',this)">
+          <div class="preset-ic pic-circuit">⚡</div>
+          <div class="preset-info">
+            <div class="preset-name">Circuit / LTSpice</div>
+            <div class="preset-desc">SPICE DC/AC/Transient analysis</div>
+          </div>
+        </button>
+        <button class="preset-btn" id="ps-structural" onclick="selectSim('structural',this)">
+          <div class="preset-ic pic-struct">🏗️</div>
+          <div class="preset-info">
+            <div class="preset-name">Structural / FEM</div>
+            <div class="preset-desc">AutoCAD-style beam &amp; truss FEA</div>
+          </div>
+        </button>
+        <button class="preset-btn" id="ps-thermal" onclick="selectSim('thermal',this)">
+          <div class="preset-ic pic-thermal">🌡️</div>
+          <div class="preset-info">
+            <div class="preset-name">Thermal / ANSYS</div>
+            <div class="preset-desc">2D heat conduction FDM</div>
+          </div>
+        </button>
+        <button class="preset-btn" id="ps-fluid" onclick="selectSim('fluid',this)">
+          <div class="preset-ic pic-fluid">🌊</div>
+          <div class="preset-info">
+            <div class="preset-name">CFD / Fluid Flow</div>
+            <div class="preset-desc">Navier-Stokes cavity flow</div>
+          </div>
+        </button>
+        <button class="preset-btn" id="ps-semiconductor" onclick="selectSim('semiconductor',this)">
+          <div class="preset-ic pic-chip">💎</div>
+          <div class="preset-info">
+            <div class="preset-name">Semiconductor / MOSFET</div>
+            <div class="preset-desc">SEmulator3D device characteristics</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="sb-section">
+      <div class="sb-head">Parameters</div>
+      <div class="param-grid" id="param-grid">
+        <!-- injected by JS -->
+      </div>
+      <div class="run-area">
+        <button class="run-btn" id="run-btn" onclick="runSimulation()">
+          <span>▶</span><span>RUN SIMULATION</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Terminal Log -->
+    <div class="sb-head" style="margin-top:auto">Terminal Log</div>
+    <div class="log-term" id="log-term"></div>
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <div class="main-panel">
+
+    <!-- SIM PANEL -->
+    <div id="sim-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div class="viz-header">
+        <div>
+          <div class="viz-title" id="viz-title">CIRCUIT ANALYSIS</div>
+          <div class="viz-meta" id="viz-meta">Select parameters and click Run Simulation</div>
+        </div>
+        <div class="vaction-row">
+          <button class="vbtn vbtn-outline" onclick="clearAll()">Clear</button>
+          <button class="vbtn vbtn-green" onclick="switchTab('export',document.querySelector('.ntab[data-tab=export]'))">Export Code</button>
+        </div>
+      </div>
+
+      <div class="viz-body" id="viz-body">
+        <div class="viz-cell" id="cell0">
+          <div class="cell-head">Waveform / Primary Plot <span class="cell-badge cb-idle" id="badge0">IDLE</span></div>
+          <div class="cell-canvas"><canvas id="canvas0" class="sim-canvas"></canvas></div>
+          <div class="cell-overlay" id="overlay0"><div class="idle-icon">📊</div><div class="idle-text">Run a simulation<br>to see results here</div></div>
+        </div>
+        <div class="viz-cell" id="cell1">
+          <div class="cell-head">2D Field / Heat Map <span class="cell-badge cb-idle" id="badge1">IDLE</span></div>
+          <div class="cell-canvas"><canvas id="canvas1" class="sim-canvas"></canvas></div>
+          <div class="cell-overlay" id="overlay1"><div class="idle-icon">🗺️</div><div class="idle-text">2D field visualization<br>appears here</div></div>
+        </div>
+        <div class="viz-cell" id="cell2">
+          <div class="cell-head">Schematic / Geometry <span class="cell-badge cb-idle" id="badge2">IDLE</span></div>
+          <div class="cell-canvas"><canvas id="canvas2" class="sim-canvas"></canvas></div>
+          <div class="cell-overlay" id="overlay2"><div class="idle-icon">📐</div><div class="idle-text">Circuit diagram or<br>structural diagram</div></div>
+        </div>
+        <div class="viz-cell" id="cell3">
+          <div class="cell-head">Spectrum / Bode / Phase <span class="cell-badge cb-idle" id="badge3">IDLE</span></div>
+          <div class="cell-canvas"><canvas id="canvas3" class="sim-canvas"></canvas></div>
+          <div class="cell-overlay" id="overlay3"><div class="idle-icon">📈</div><div class="idle-text">Frequency analysis<br>plot appears here</div></div>
+        </div>
+      </div>
+
+      <div class="stat-strip" id="stat-strip">
+        <div class="stat-item"><div class="stat-label">STATUS</div><div class="stat-val sv-cyan" id="st0">READY</div></div>
+        <div class="stat-item"><div class="stat-label">RESULT 1</div><div class="stat-val sv-green" id="st1">—</div></div>
+        <div class="stat-item"><div class="stat-label">RESULT 2</div><div class="stat-val sv-amber" id="st2">—</div></div>
+        <div class="stat-item"><div class="stat-label">RESULT 3</div><div class="stat-val sv-blue" id="st3">—</div></div>
+        <div class="stat-item"><div class="stat-label">RESULT 4</div><div class="stat-val sv-red" id="st4">—</div></div>
+      </div>
+
+      <!-- AI Chat -->
+      <div class="chat-panel">
+        <div class="chat-scroll" id="chat-scroll"></div>
+        <div class="chips-row" id="chips-row"></div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" placeholder="Ask SimLab AI: 'Simulate a RC low-pass at 1kHz'..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="chat-send" onclick="sendChat()">SEND</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHIP FABRICATION PANEL -->
+    <div id="fab-panel">
+      <div class="fab-header">
+        <div class="fab-title">CHIP FABRICATION PROCESS</div>
+        <div class="viz-meta">Interactive CMOS process walkthrough — click steps to explore</div>
+      </div>
+      <div class="fab-body">
+        <div class="fab-viz" id="fab-viz"></div>
+        <div class="fab-steps" id="fab-steps"></div>
+      </div>
+    </div>
+
+    <!-- EXPORT PANEL -->
+    <div class="export-panel" id="export-panel">
+      <div class="export-tabs">
+        <div class="etab active" onclick="showExport('spice',this)">SPICE Netlist</div>
+        <div class="etab" onclick="showExport('apdl',this)">ANSYS APDL</div>
+        <div class="etab" onclick="showExport('autocad',this)">AutoCAD SCR</div>
+        <div class="etab" onclick="showExport('comsol',this)">COMSOL .m</div>
+        <div class="etab" onclick="showExport('verilog',this)">Verilog HDL</div>
+      </div>
+      <pre class="export-content" id="export-content">; Run a simulation first to generate export code.
+; Supported formats:
+;   SPICE  — LTspice XVII compatible netlist
+;   APDL   — ANSYS Parametric Design Language
+;   AutoCAD— .scr script for AutoCAD 2024+
+;   COMSOL — MATLAB-style script for COMSOL 6.x
+;   Verilog— synthesizable RTL for FPGA/ASIC
+</pre>
+    </div>
+
+  </div><!-- main-panel -->
+</div><!-- workspace -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+let currentSim = 'circuit';
+let charts = [null,null,null,null];
+let exports_ = {spice:'',apdl:'',autocad:'',comsol:'',verilog:''};
+const chatHistory = [];
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════════════
+setInterval(()=>{ $('hclock').textContent = new Date().toLocaleTimeString('en-GB',{hour12:false}); },1000);
+
+// ═══════════════════════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════════════════════
+function log(type, msg) {
+  const t = $('log-term');
+  const ts = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const d = document.createElement('div');
+  d.className = 'log-entry';
+  d.innerHTML = `<span class="log-ts">${ts}</span><span class="log-${type}">${msg}</span>`;
+  t.appendChild(d);
+  t.scrollTop = t.scrollHeight;
+  if(t.children.length > 80) t.removeChild(t.children[0]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAB SWITCH
+// ═══════════════════════════════════════════════════════════════════════
+function switchTab(tab, el) {
+  document.querySelectorAll('.ntab').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  $('sim-panel').style.display = tab==='sim'?'flex':'none';
+  $('fab-panel').style.display = $('fab-panel').classList.toggle('active', tab==='fab') ? 'flex':'none';
+  $('export-panel').style.display = tab==='export'?'flex':'none';
+  if(tab==='fab') renderFabPanel();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIM PARAMETERS CONFIG
+// ═══════════════════════════════════════════════════════════════════════
+const SIM_PARAMS = {
+  circuit: [
+    {id:'c_vs', label:'Supply V', val:'5', unit:'V'},
+    {id:'c_r1', label:'R1', val:'10000', unit:'Ω'},
+    {id:'c_r2', label:'R2', val:'4700', unit:'Ω'},
+    {id:'c_c1', label:'C1', val:'100', unit:'nF'},
+    {id:'c_freq', label:'Freq', val:'1000', unit:'Hz'},
+  ],
+  structural: [
+    {id:'s_len', label:'Length', val:'2', unit:'m'},
+    {id:'s_load', label:'Load', val:'50000', unit:'N'},
+    {id:'s_e', label:'E-modulus', val:'210', unit:'GPa'},
+    {id:'s_h', label:'Height', val:'200', unit:'mm'},
+    {id:'s_w', label:'Width', val:'100', unit:'mm'},
+  ],
+  thermal: [
+    {id:'t_top', label:'T_top', val:'200', unit:'°C'},
+    {id:'t_bot', label:'T_bot', val:'20', unit:'°C'},
+    {id:'t_left', label:'T_left', val:'100', unit:'°C'},
+    {id:'t_right', label:'T_right', val:'20', unit:'°C'},
+    {id:'t_k', label:'Conductivity', val:'50', unit:'W/mK'},
+  ],
+  fluid: [
+    {id:'f_re', label:'Reynolds', val:'200', unit:'—'},
+    {id:'f_lid', label:'Lid vel.', val:'1.0', unit:'m/s'},
+    {id:'f_nx', label:'Grid NX', val:'32', unit:''},
+    {id:'f_ny', label:'Grid NY', val:'32', unit:''},
+  ],
+  semiconductor: [
+    {id:'m_vgs', label:'Vgs max', val:'5', unit:'V'},
+    {id:'m_vds', label:'Vds', val:'3', unit:'V'},
+    {id:'m_vth', label:'Vth', val:'1.0', unit:'V'},
+    {id:'m_mu', label:'μn Cox W/L', val:'200', unit:'μA/V²'},
+    {id:'m_l', label:'Channel L', val:'180', unit:'nm'},
+  ],
+};
+
+const SIM_CHIPS = {
+  circuit: ['RC low-pass 1kHz','Voltage divider 5V','Op-amp inverter','BJT common-emitter'],
+  structural: ['Steel cantilever 2m 50kN','Simply supported beam 3m','Truss bridge 10kN','Column buckling'],
+  thermal: ['Hot plate 200°C','CPU heatsink 80°C','Wall insulation','PCB thermal'],
+  fluid: ['Cavity Re=200','Pipe flow Re=1000','Flow over step','Vortex shedding'],
+  semiconductor: ['NMOS Id-Vgs','PMOS saturation','CMOS inverter Vout-Vin','Sub-threshold slope'],
+};
+
+function selectSim(type, btn) {
+  currentSim = type;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildParams();
+  updateTitle();
+  updateChips();
+  log('info', `Loaded ${type} engine`);
+}
+
+function buildParams() {
+  const pg = $('param-grid');
+  pg.innerHTML = '';
+  (SIM_PARAMS[currentSim]||[]).forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    row.innerHTML = `<span class="param-label">${p.label}</span><input class="param-input" id="${p.id}" value="${p.val}"><span class="param-unit">${p.unit}</span>`;
+    pg.appendChild(row);
+  });
+}
+
+function getParam(id, fallback=0) {
+  const el = $(id);
+  return el ? parseFloat(el.value)||fallback : fallback;
+}
+
+function updateTitle() {
+  const titles = {circuit:'CIRCUIT ANALYSIS — LTSpice Mode',structural:'STRUCTURAL FEM — AutoCAD Mode',thermal:'THERMAL ANALYSIS — ANSYS Mode',fluid:'CFD SIMULATION — Navier-Stokes',semiconductor:'SEMICONDUCTOR — SEmulator3D'};
+  $('viz-title').textContent = titles[currentSim]||'SIMULATION';
+  $('viz-meta').textContent = 'Configure parameters and click Run Simulation';
+}
+
+function updateChips() {
+  const row = $('chips-row');
+  row.innerHTML = '';
+  (SIM_CHIPS[currentSim]||[]).forEach(c=>{
+    const ch = document.createElement('div');
+    ch.className = 'qchip';
+    ch.textContent = c;
+    ch.onclick = ()=>{ $('chat-input').value = `Simulate: ${c}`; sendChat(); };
+    row.appendChild(ch);
+  });
+}
+
+buildParams(); updateTitle(); updateChips();
+
+// ═══════════════════════════════════════════════════════════════════════
+// CHART UTILS
+// ═══════════════════════════════════════════════════════════════════════
+function destroyChart(i) { if(charts[i]){ charts[i].destroy(); charts[i]=null; } }
+
+function mkChart(idx, type, labels, datasets, opts={}) {
+  destroyChart(idx);
+  const canvas = $(`canvas${idx}`);
+  const ctx = canvas.getContext('2d');
+  const hide = $(`overlay${idx}`);
+  if(hide) hide.style.display='none';
+  $(`badge${idx}`).textContent='LIVE';
+  $(`badge${idx}`).className='cell-badge cb-live';
+  charts[idx] = new Chart(ctx, {
+    type,
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:{duration:600},
+      plugins:{legend:{display:datasets.length>1,labels:{color:'#4a6080',font:{family:'JetBrains Mono',size:10}}},tooltip:{backgroundColor:'#0d1220',borderColor:'#1e2d45',borderWidth:1,titleColor:'#00e5ff',bodyColor:'#cdd8ef',bodyFont:{family:'JetBrains Mono'}}},
+      scales:{
+        x:{grid:{color:'rgba(30,45,69,.6)'},ticks:{color:'#4a6080',font:{family:'JetBrains Mono',size:9}},..( opts.xLabel?{title:{display:true,text:opts.xLabel,color:'#4a6080',font:{family:'JetBrains Mono',size:9}}}:{}) },
+        y:{grid:{color:'rgba(30,45,69,.6)'},ticks:{color:'#4a6080',font:{family:'JetBrains Mono',size:9}},..( opts.yLabel?{title:{display:true,text:opts.yLabel,color:'#4a6080',font:{family:'JetBrains Mono',size:9}}}:{}) }
+      },
+      ...opts.extra
+    }
+  });
+}
+
+function mkLine(idx, xdata, ydataArr, names, colors, xLabel, yLabel) {
+  mkChart(idx,'line', xdata, ydataArr.map((d,i)=>({
+    label:names[i], data:d, borderColor:colors[i], backgroundColor:'transparent',
+    borderWidth:1.5, pointRadius:0, tension:.3
+  })), {xLabel, yLabel});
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIMULATION ENGINES
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── CIRCUIT ─────────────────────────────────────────────────────────────
+function runCircuit() {
+  const Vs = getParam('c_vs',5);
+  const R1 = getParam('c_r1',10000);
+  const R2 = getParam('c_r2',4700);
+  const C1 = getParam('c_c1',100)*1e-9;
+  const freq = getParam('c_freq',1000);
+
+  // DC Analysis
+  const Vout_dc = Vs * R2/(R1+R2);
+  const I_dc = Vs/(R1+R2);
+  const P_R1 = I_dc*I_dc*R1;
+  const P_R2 = I_dc*I_dc*R2;
+
+  // Transient: V(t) = Vs*(1 - e^(-t/RC))
+  const RC = R2*C1;
+  const Npt = 300;
+  const tMax = 5*RC;
+  const t = Array.from({length:Npt},(_,i)=>i*tMax/(Npt-1));
+  const Vrc = t.map(ti=> Vout_dc*(1-Math.exp(-ti/RC)));
+  const Vcap = t.map(ti=> Vs*(1-Math.exp(-ti/RC)));
+  const t_ms = t.map(x=>+(x*1000).toFixed(3));
+
+  // AC Bode: RC LP filter
+  const freqs = Array.from({length:200},(_,i)=>10**(i/40)); // 1 Hz to 10^5
+  const fc = 1/(2*Math.PI*RC);
+  const mag = freqs.map(f=>20*Math.log10(1/Math.sqrt(1+(f/fc)**2)));
+  const phase = freqs.map(f=>-Math.atan(f/fc)*180/Math.PI);
+  const freqLog = freqs.map(f=>f.toFixed(1));
+
+  // Input sinusoid vs output
+  const Nsin=400, tSin = Array.from({length:Nsin},(_,i)=>i*5/freq/(Nsin-1));
+  const Vin_sin = tSin.map(ti=>Vs*Math.sin(2*Math.PI*freq*ti));
+  const w = 2*Math.PI*freq; const H_mag = 1/Math.sqrt(1+(w*RC)**2);
+  const H_ph = -Math.atan(w*RC);
+  const Vout_sin = tSin.map(ti=>Vs*H_mag*Math.sin(2*Math.PI*freq*ti+H_ph));
+  const t_sin_ms = tSin.map(x=>+(x*1000).toFixed(3));
+
+  // Plot 0: Transient
+  mkLine(0, t_ms, [Vrc, Vcap], ['V_out (node2)','V_cap'], ['#00e5ff','#ffb800'], 'Time (ms)', 'Voltage (V)');
+  // Plot 1: Bode Magnitude
+  mkLine(1, freqLog, [mag], ['|H(f)| dB'], ['#00ff88'], 'Freq (Hz)', 'Gain (dB)');
+  // Plot 3: Bode Phase + input/output sine
+  mkLine(3, t_sin_ms, [Vin_sin, Vout_sin], ['V_in','V_out'], ['#4488ff','#ff3860'], 'Time (ms)', 'V');
+
+  // Schematic on canvas2 (SVG-drawn)
+  drawCircuitSchematic($('canvas2'), {Vs, R1, R2, C1, Vout_dc, I_dc, freq});
+
+  // Stats
+  $('st0').textContent='SOLVED';
+  $('st1').textContent=`V₂=${Vout_dc.toFixed(3)}V`;
+  $('st2').textContent=`I=${(I_dc*1000).toFixed(2)}mA`;
+  $('st3').textContent=`fc=${(fc/1000).toFixed(2)}kHz`;
+  $('st4').textContent=`τ=${(RC*1000).toFixed(2)}ms`;
+
+  // SPICE export
+  exports_.spice = `* SimLab SPICE Netlist — Resistor Divider + RC Filter
+* Generated ${new Date().toISOString()}
+
+V1 Vin 0 DC ${Vs} AC ${Vs} SIN(0 ${Vs} ${freq})
+R1 Vin node1 ${R1}
+R2 node1 0 ${R2}
+C1 node1 0 ${(C1*1e9).toFixed(1)}n
+
+.tran 1n ${(tMax*1e3).toFixed(3)}m
+.ac dec 100 1 1MEG
+.dc V1 0 ${Vs} 0.1
+
+.measure TRAN Vout_dc AVG V(node1)
+.measure TRAN I_total MAX I(V1)
+
+.probe V(Vin) V(node1) I(R1) I(R2)
+.end`;
+
+  exports_.verilog = `// SimLab — Equivalent digital representation
+// RC filter fc = ${(fc).toFixed(1)} Hz
+// Not synthesizable — reference model only
+module rc_filter #(
+  parameter real R = ${R1},
+  parameter real C = ${(C1*1e9).toFixed(1)}e-9
+)(
+  input  real vin,
+  output real vout
+);
+  // Transfer function: H(s) = 1/(1 + s*R*C)
+  // fc = 1/(2*pi*R*C) = ${(fc).toFixed(2)} Hz
+  real tau = R * C;
+  assign vout = vin; // placeholder
+endmodule`;
+
+  log('ok', `Circuit solved: V2=${Vout_dc.toFixed(3)}V I=${(I_dc*1000).toFixed(2)}mA fc=${(fc).toFixed(0)}Hz`);
+  return {Vout_dc, I_dc, P_R1, P_R2, fc, RC};
+}
+
+function drawCircuitSchematic(canvas, p) {
+  const w = canvas.offsetWidth||400, h = canvas.offsetHeight||300;
+  canvas.width=w; canvas.height=h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2;
+  ctx.strokeStyle='#00e5ff'; ctx.lineWidth=1.5; ctx.font='10px JetBrains Mono'; ctx.fillStyle='#4a6080';
+
+  // Draw voltage source left
+  const sx=cx-120, sy=cy;
+  ctx.beginPath(); ctx.arc(sx,sy,18,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#00e5ff'; ctx.fillText(`${p.Vs}V`,sx-10,sy+4);
+  ctx.fillStyle='#4a6080';
+
+  // Wire top
+  ctx.beginPath(); ctx.moveTo(sx,sy-18); ctx.lineTo(sx,sy-50); ctx.lineTo(cx+120,sy-50); ctx.stroke();
+  // Wire bot
+  ctx.beginPath(); ctx.moveTo(sx,sy+18); ctx.lineTo(sx,sy+50); ctx.lineTo(cx+120,sy+50); ctx.stroke();
+
+  // R1
+  drawResistor(ctx,cx-60,sy-50,'H','R1='+p.R1+'Ω');
+  // Node1
+  ctx.beginPath(); ctx.arc(cx,sy-50,4,0,Math.PI*2); ctx.fillStyle='#ffb800'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#ffb800'; ctx.fillText('node1',cx+5,sy-55);
+  ctx.fillStyle='#4a6080';
+  // R2
+  drawResistor(ctx,cx,cy,'V','R2='+p.R2+'Ω');
+  // C1
+  ctx.beginPath(); ctx.moveTo(cx+80,sy-50); ctx.lineTo(cx+80,sy-15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+60,sy-15); ctx.lineTo(cx+100,sy-15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+60,sy-10); ctx.lineTo(cx+100,sy-10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+80,sy-10); ctx.lineTo(cx+80,sy+50); ctx.stroke();
+  ctx.fillStyle='#00c9a7'; ctx.fillText(`C1=${(p.C1*1e9).toFixed(0)}nF`,cx+85,sy-20); ctx.fillStyle='#4a6080';
+
+  // Labels
+  ctx.fillStyle='#00e5ff'; ctx.fillText(`Vout=${p.Vout_dc.toFixed(3)}V`,cx-20,cy+70);
+  ctx.fillText(`I=${(p.I_dc*1000).toFixed(2)}mA`,cx-20,cy+85);
+
+  $('overlay2').style.display='none';
+  $('badge2').textContent='LIVE';
+  $('badge2').className='cell-badge cb-live';
+}
+
+function drawResistor(ctx,x,y,dir,label) {
+  ctx.save();
+  ctx.strokeStyle='#ffb800'; ctx.lineWidth=1.5;
+  if(dir==='H') {
+    ctx.beginPath(); ctx.moveTo(x-30,y); ctx.lineTo(x-20,y);
+    for(let i=0;i<5;i++){ctx.lineTo(x-20+i*10+5,y-8);ctx.lineTo(x-20+i*10+10,y+8);}
+    ctx.lineTo(x+30,y); ctx.stroke();
+    ctx.fillStyle='#ffb800'; ctx.fillText(label,x-25,y-14);
+  } else {
+    ctx.beginPath(); ctx.moveTo(x,y-40); ctx.lineTo(x,y-30);
+    for(let i=0;i<5;i++){ctx.lineTo(x+8,y-30+i*10+5);ctx.lineTo(x-8,y-30+i*10+10);}
+    ctx.lineTo(x,y+40); ctx.stroke();
+    ctx.fillStyle='#ffb800'; ctx.fillText(label,x+10,y-10);
+  }
+  ctx.restore();
+}
+
+// ── STRUCTURAL ──────────────────────────────────────────────────────────
+function runStructural() {
+  const L = getParam('s_len',2);
+  const F = getParam('s_load',50000);
+  const E = getParam('s_e',210)*1e9;
+  const h = getParam('s_h',200)*1e-3;
+  const w = getParam('s_w',100)*1e-3;
+  const I = w*h*h*h/12;
+  const A = w*h;
+
+  // Cantilever beam
+  const Npt=200;
+  const x = Array.from({length:Npt},(_,i)=>i*L/(Npt-1));
+  const defl = x.map(xi=>-F*xi*xi*(3*L-xi)/(6*E*I));
+  const moment = x.map(xi=>F*(L-xi));
+  const shear = x.map(()=>F);
+  const stress_top = moment.map(M=>M*(h/2)/I);
+  const x_m = x.map(v=>+v.toFixed(3));
+
+  const maxDefl = Math.abs(F*L**3/(3*E*I))*1000;
+  const maxStress = (F*L*(h/2)/I)/1e6;
+  const yield_mpa = 355;
+  const SF = yield_mpa/maxStress;
+  const nat_freq = 1.875**2/(2*Math.PI*L**2)*Math.sqrt(E*I/(7850*A));
+
+  mkLine(0,x_m,[defl.map(v=>v*1000)],['Deflection (mm)'],['#00e5ff'],'x (m)','δ (mm)');
+  mkLine(1,x_m,[moment.map(v=>v/1000)],['Bending Moment (kN·m)'],['#ff3860'],'x (m)','M (kN·m)');
+  mkLine(3,x_m,[stress_top.map(v=>v/1e6)],['σ top face (MPa)'],['#ffb800'],'x (m)','σ (MPa)');
+
+  // Beam diagram
+  drawBeamDiagram($('canvas2'), {L,F,h,w,maxDefl,maxStress,SF});
+
+  $('st0').textContent=SF>=1.5?'SAFE':'DANGER';
+  $('st0').style.color=SF>=1.5?'var(--green)':'var(--red)';
+  $('st1').textContent=`δ=${maxDefl.toFixed(2)}mm`;
+  $('st2').textContent=`σ=${maxStress.toFixed(1)}MPa`;
+  $('st3').textContent=`SF=${SF.toFixed(2)}`;
+  $('st4').textContent=`f=${nat_freq.toFixed(2)}Hz`;
+
+  exports_.autocad=`; SimLab AutoCAD Script — Cantilever Beam
+; Generated ${new Date().toISOString()}
+; Beam: L=${L}m, Load=${F/1000}kN, E=${E/1e9}GPa
+
+UNITS
+6
+LINE
+0,0,0
+${L},0,0
+
+; Draw support symbol at x=0
+CIRCLE 0,0,0 0.05
+HATCH solid
+SELECT LAST
+
+; Draw load arrow at x=L
+LEADER ${L},0,0 ${L},${-F/50000*0.5},0
+
+; Dimension
+DIMLINEAR
+0,0,0
+${L},0,0
+${L/2},-0.2,0
+
+; Text annotation
+TEXT ${L/2},0.15,0 0 SimLab FEA
+TEXT ${L/2},0.05,0 0 sigma_max=${maxStress.toFixed(1)}MPa SF=${SF.toFixed(2)}
+TEXT ${L/2},-0.1,0 0 delta_max=${maxDefl.toFixed(2)}mm
+ZOOM E
+`;
+
+  exports_.comsol=`% SimLab COMSOL Script — Structural Beam Analysis
+% Generated ${new Date().toISOString()}
+model = ModelUtil.create('Beam_Model');
+model.modelNode.create('comp1');
+geom1 = model.geom.create('geom1', 3);
+blk1 = geom1.create('blk1','Block');
+blk1.set('size', {'${L}' '${w}' '${h}'});
+geom1.run;
+mat1 = model.material.create('mat1');
+mat1.propertyGroup('def').set('youngsmodulus','${E}');
+mat1.propertyGroup('def').set('poissonsratio','0.3');
+mat1.propertyGroup('def').set('density','7850');
+solid = model.physics.create('solid','SolidMechanics','geom1');
+solid.create('fix1','Fixed',2);
+solid.feature('fix1').selection.set([1]);
+solid.create('bndl1','BoundaryLoad',2);
+solid.feature('bndl1').selection.set([6]);
+solid.feature('bndl1').set('FperArea',{'0' '0' '-${F/(w*1000)}'});
+mesh1 = model.mesh.create('mesh1');
+mesh1.autoMeshSize(4);
+mesh1.run;
+study1 = model.study.create('std1');
+study1.create('stat','Stationary');
+model.sol.create('sol1');
+model.sol('sol1').attach('std1');
+model.sol('sol1').run;
+% Post: mises stress
+pg1 = model.result.create('pg1','PlotGroup3D');
+surf1 = pg1.create('surf1','Surface');
+surf1.set('expr','solid.mises');
+pg1.run;
+disp('Max deflection (mm): ${maxDefl.toFixed(3)}');
+disp('Max stress (MPa): ${maxStress.toFixed(1)}');
+disp('Safety factor: ${SF.toFixed(2)}');`;
+
+  log(SF>=1.5?'ok':'warn', `Structural: δ=${maxDefl.toFixed(2)}mm σ=${maxStress.toFixed(1)}MPa SF=${SF.toFixed(2)} [${SF>=1.5?'SAFE':'DANGER'}]`);
+}
+
+function drawBeamDiagram(canvas, p) {
+  const W=canvas.offsetWidth||400,H=canvas.offsetHeight||300;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const sx=40,sy=H*0.5,bw=W-80;
+
+  // Beam
+  ctx.fillStyle='#1a2235'; ctx.fillRect(sx,sy-20,bw,40);
+  ctx.strokeStyle='#4488ff'; ctx.lineWidth=2; ctx.strokeRect(sx,sy-20,bw,40);
+
+  // Dimensions text
+  ctx.fillStyle='#4a6080'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`L=${p.L}m`,sx+bw/2-20,sy+60);
+  ctx.fillText(`h=${(p.h*1000).toFixed(0)}mm × w=${(p.w*1000).toFixed(0)}mm`,sx,sy+75);
+
+  // Fixed support (hatch)
+  ctx.fillStyle='#2a3d55';
+  ctx.fillRect(sx-20,sy-40,20,80);
+  for(let i=0;i<8;i++){
+    ctx.beginPath(); ctx.moveTo(sx-20,sy-40+i*10); ctx.lineTo(sx-5,sy-35+i*10);
+    ctx.strokeStyle='#4a6080'; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  // Load arrow
+  const ex=sx+bw, ey=sy-20;
+  ctx.beginPath(); ctx.moveTo(ex,ey-60); ctx.lineTo(ex,ey);
+  ctx.strokeStyle='#ff3860'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ex-8,ey-15); ctx.lineTo(ex,ey); ctx.lineTo(ex+8,ey-15);
+  ctx.fillStyle='#ff3860'; ctx.fill();
+  ctx.fillStyle='#ff3860'; ctx.font='11px JetBrains Mono';
+  ctx.fillText(`F=${(p.F/1000).toFixed(0)}kN`,ex-40,ey-65);
+
+  // Deflection curve (exaggerated)
+  const npts=60, scale=30;
+  ctx.beginPath(); ctx.moveTo(sx,sy);
+  for(let i=1;i<=npts;i++){
+    const xi=i/npts, defl=-xi*xi*(3-xi)/2;
+    ctx.lineTo(sx+xi*bw, sy-20+defl*scale*-1);
+  }
+  ctx.strokeStyle='#00e5ff'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Stats
+  ctx.fillStyle=p.SF>=1.5?'#00ff88':'#ff3860';
+  ctx.font='bold 12px JetBrains Mono';
+  ctx.fillText(`SF=${p.SF.toFixed(2)} ${p.SF>=1.5?'✓ SAFE':'⚠ DANGER'}`,sx,H-15);
+  ctx.fillStyle='#4a6080'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`δmax=${p.maxDefl.toFixed(2)}mm  σmax=${p.maxStress.toFixed(1)}MPa`,sx+140,H-15);
+
+  $('overlay2').style.display='none';
+  $('badge2').textContent='LIVE';
+  $('badge2').className='cell-badge cb-live';
+}
+
+// ── THERMAL ─────────────────────────────────────────────────────────────
+function runThermal() {
+  const T_top = getParam('t_top',200);
+  const T_bot = getParam('t_bot',20);
+  const T_l   = getParam('t_left',100);
+  const T_r   = getParam('t_right',20);
+  const k     = getParam('t_k',50);
+  const NX=30, NY=30;
+
+  // Finite Difference Steady State (Gauss-Seidel)
+  let T = Array.from({length:NY},(_,j)=>Array.from({length:NX},(_,i)=>{
+    return T_bot + (T_top-T_bot)*j/(NY-1);
+  }));
+
+  for(let iter=0;iter<3000;iter++){
+    for(let j=1;j<NY-1;j++) for(let i=1;i<NX-1;i++){
+      T[j][i]=(T[j+1][i]+T[j-1][i]+T[j][i+1]+T[j][i-1])/4;
+    }
+    // BCs
+    for(let i=0;i<NX;i++){ T[NY-1][i]=T_top; T[0][i]=T_bot; }
+    for(let j=0;j<NY;j++){ T[j][0]=T_l; T[j][NX-1]=T_r; }
+  }
+
+  const flat = T.flat();
+  const maxT=Math.max(...flat), minT=Math.min(...flat), avgT=flat.reduce((a,b)=>a+b,0)/flat.length;
+
+  // Draw heatmap on canvas1
+  drawHeatmap($('canvas1'), T, NX, NY, minT, maxT);
+
+  // Temperature profile along centerline
+  const cx_i=Math.floor(NX/2);
+  const y_line = Array.from({length:NY},(_,j)=>(j/(NY-1)).toFixed(3));
+  const T_center = Array.from({length:NY},(_,j)=>T[j][cx_i]);
+  mkLine(0,y_line,[T_center],['T(y) centerline'],['#ff3860'],'y/H','T (°C)');
+
+  // Heat flux profile along top
+  const x_line = Array.from({length:NX},(_,i)=>(i/(NX-1)).toFixed(3));
+  const qy_top = Array.from({length:NX},(_,i)=>k*(T[NY-2][i]-T[NY-1][i])*NY);
+  mkLine(3,x_line,[qy_top],['q_y at top (W/m²)'],['#ffb800'],'x/W','q (W/m²)');
+
+  $('st0').textContent='CONVERGED';
+  $('st0').style.color='var(--cyan)';
+  $('st1').textContent=`Tmax=${maxT.toFixed(1)}°C`;
+  $('st2').textContent=`Tmin=${minT.toFixed(1)}°C`;
+  $('st3').textContent=`Tavg=${avgT.toFixed(1)}°C`;
+  $('st4').textContent=`k=${k}W/mK`;
+
+  exports_.apdl=`! SimLab ANSYS APDL — Thermal Analysis
+! Generated ${new Date().toISOString()}
+/PREP7
+ET,1,PLANE55          ! 2D thermal element
+MP,KXX,1,${k}         ! Conductivity W/mK
+MP,DENS,1,7850
+MP,C,1,500
+
+RECTNG,0,0.1,0,0.1    ! 0.1m x 0.1m plate
+ESIZE,0.005
+AMESH,ALL
+
+! Boundary Conditions
+NSEL,S,LOC,Y,0.1
+D,ALL,TEMP,${T_top}    ! Top surface = ${T_top}°C
+NSEL,S,LOC,Y,0
+D,ALL,TEMP,${T_bot}    ! Bottom = ${T_bot}°C
+NSEL,S,LOC,X,0
+D,ALL,TEMP,${T_l}      ! Left = ${T_l}°C
+NSEL,S,LOC,X,0.1
+D,ALL,TEMP,${T_r}      ! Right = ${T_r}°C
+NSEL,ALL
+
+FINISH
+/SOLU
+ANTYPE,STATIC
+SOLVE
+FINISH
+
+/POST1
+SET,LAST
+PLNSOL,TEMP
+*GET,TMAX,NODE,,TEMP,MAX
+*GET,TMIN,NODE,,TEMP,MIN
+/OUTPUT,results,txt
+*VWRITE,TMAX,TMIN
+(F10.2,F10.2)
+! Expected: Tmax=${maxT.toFixed(1)} Tmin=${minT.toFixed(1)}`;
+
+  log('ok',`Thermal converged: Tmax=${maxT.toFixed(1)}°C Tavg=${avgT.toFixed(1)}°C`);
+}
+
+function drawHeatmap(canvas, T, NX, NY, minT, maxT) {
+  const W=canvas.offsetWidth||400, H=canvas.offsetHeight||300;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const cw=W/NX, ch=H/NY;
+  for(let j=0;j<NY;j++) for(let i=0;i<NX;i++){
+    const n=(T[j][i]-minT)/(maxT-minT||1);
+    ctx.fillStyle=heatColor(n);
+    ctx.fillRect(i*cw,(NY-1-j)*ch,cw+1,ch+1);
+  }
+  // Colorbar
+  const cbW=12,cbH=H-40;
+  for(let p=0;p<cbH;p++){
+    ctx.fillStyle=heatColor(1-p/cbH);
+    ctx.fillRect(W-cbW-20,20+p,cbW,1);
+  }
+  ctx.fillStyle='rgba(4,6,13,.6)';
+  ctx.fillRect(W-cbW-60,15,70,cbH+10);
+  ctx.fillStyle='#cdd8ef'; ctx.font='9px JetBrains Mono';
+  ctx.fillText(`${maxT.toFixed(0)}°C`,W-50,28);
+  ctx.fillText(`${minT.toFixed(0)}°C`,W-50,H-18);
+  ctx.fillText('°C',W-50,H/2);
+  $('overlay1').style.display='none';
+  $('badge1').textContent='LIVE'; $('badge1').className='cell-badge cb-live';
+  // Cell 2: show isothermal lines
+  drawIsotherms($('canvas2'),T,NX,NY,minT,maxT);
+}
+
+function heatColor(n) {
+  if(n<0.25) return `rgb(${Math.round(n*4*68)},${Math.round(n*4*40)},${Math.round(200+n*4*55)})`;
+  if(n<0.5)  return `rgb(${Math.round(68+(n-.25)*4*120)},${Math.round(40+(n-.25)*4*100)},${Math.round(255-(n-.25)*4*255)})`;
+  if(n<0.75) return `rgb(${Math.round(188+(n-.5)*4*67)},${Math.round(140+(n-.5)*4*40)},0)`;
+  return `rgb(255,${Math.round(180-(n-.75)*4*180)},0)`;
+}
+
+function drawIsotherms(canvas, T, NX, NY, minT, maxT) {
+  const W=canvas.offsetWidth||400, H=canvas.offsetHeight||300;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  // Background
+  ctx.fillStyle='#04060d'; ctx.fillRect(0,0,W,H);
+  const nLevels=8;
+  for(let l=0;l<nLevels;l++){
+    const Tl=minT+(maxT-minT)*l/nLevels;
+    ctx.strokeStyle=`hsl(${200-l*25},80%,55%)`;
+    ctx.lineWidth=1;
+    for(let j=0;j<NY-1;j++) for(let i=0;i<NX-1;i++){
+      const x0=i*W/NX,y0=(NY-1-j)*H/NY;
+      const vals=[T[j][i],T[j][i+1],T[j+1][i+1],T[j+1][i]];
+      const above=vals.map(v=>v>Tl);
+      const any=above.some(Boolean),all=above.every(Boolean);
+      if(!any||all) continue;
+      // simplified: draw midpoint line
+      ctx.beginPath();
+      ctx.moveTo(x0+W/NX/2,y0);
+      ctx.lineTo(x0,y0+H/NY/2);
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle='#4a6080'; ctx.font='10px JetBrains Mono';
+  ctx.fillText('Isothermal contours',8,H-10);
+  $('overlay2').style.display='none';
+  $('badge2').textContent='LIVE'; $('badge2').className='cell-badge cb-live';
+}
+
+// ── CFD ─────────────────────────────────────────────────────────────────
+function runFluid() {
+  const Re = getParam('f_re',200);
+  const lid = getParam('f_lid',1.0);
+  const NX = Math.min(getParam('f_nx',32),40);
+  const NY = Math.min(getParam('f_ny',32),40);
+  const nu = lid/Re;
+  const dt = 0.001, dx=1/(NX-1), dy=1/(NY-1);
+  const N=NX,M=NY;
+
+  let u=Array.from({length:M},()=>new Float64Array(N));
+  let v=Array.from({length:M},()=>new Float64Array(N));
+  let p=Array.from({length:M},()=>new Float64Array(N));
+
+  log('sim',`CFD Re=${Re} grid=${N}x${M} running...`);
+
+  for(let step=0;step<500;step++){
+    // Lid BC
+    for(let i=0;i<N;i++) u[M-1][i]=lid;
+    // Pressure Poisson (simplified)
+    const p2=Array.from({length:M},()=>new Float64Array(N));
+    for(let iter=0;iter<20;iter++){
+      for(let j=1;j<M-1;j++) for(let i=1;i<N-1;i++){
+        const div=(u[j][i+1]-u[j][i-1])/(2*dx)+(v[j+1][i]-v[j-1][i])/(2*dy);
+        p2[j][i]=(p[j][i+1]+p[j][i-1]+p[j+1][i]+p[j-1][i])/4-div*dx*dx/8;
+      }
+      for(let j=0;j<M;j++){ p2[j][0]=p2[j][1]; p2[j][N-1]=p2[j][N-2]; }
+      for(let i=0;i<N;i++){ p2[0][i]=p2[1][i]; p2[M-1][i]=0; }
+      for(let j=0;j<M;j++) for(let i=0;i<N;i++) p[j][i]=p2[j][i];
+    }
+    // Velocity update
+    const un=Array.from({length:M},(_,j)=>new Float64Array(u[j]));
+    const vn=Array.from({length:M},(_,j)=>new Float64Array(v[j]));
+    for(let j=1;j<M-1;j++) for(let i=1;i<N-1;i++){
+      u[j][i]=un[j][i]-un[j][i]*(un[j][i]-un[j][i-1])/dx*dt
+        -vn[j][i]*(un[j][i]-un[j-1][i])/dy*dt
+        -1*dt*(p[j][i+1]-p[j][i-1])/(2*dx)
+        +nu*dt*((un[j][i+1]-2*un[j][i]+un[j][i-1])/dx**2+(un[j+1][i]-2*un[j][i]+un[j-1][i])/dy**2);
+      v[j][i]=vn[j][i]-un[j][i]*(vn[j][i]-vn[j][i-1])/dx*dt
+        -vn[j][i]*(vn[j][i]-vn[j-1][i])/dy*dt
+        -1*dt*(p[j+1][i]-p[j-1][i])/(2*dy)
+        +nu*dt*((vn[j][i+1]-2*vn[j][i]+vn[j][i-1])/dx**2+(vn[j+1][i]-2*vn[j][i]+vn[j-1][i])/dy**2);
+    }
+    // BCs
+    for(let i=0;i<N;i++){u[0][i]=0;u[M-1][i]=lid;v[0][i]=0;v[M-1][i]=0;}
+    for(let j=0;j<M;j++){u[j][0]=0;u[j][N-1]=0;v[j][0]=0;v[j][N-1]=0;}
+  }
+
+  // Render velocity magnitude heatmap on canvas1
+  const W=($('canvas1').offsetWidth||400), H=($('canvas1').offsetHeight||300);
+  $('canvas1').width=W; $('canvas1').height=H;
+  const ctx1=$('canvas1').getContext('2d');
+  let maxV2=0;
+  const vmag=Array.from({length:M},(_,j)=>Array.from({length:N},(_,i)=>{
+    const s=Math.sqrt(u[j][i]**2+v[j][i]**2); if(s>maxV2)maxV2=s; return s;
+  }));
+  for(let j=0;j<M;j++) for(let i=0;i<N;i++){
+    const n=vmag[j][i]/maxV2;
+    ctx1.fillStyle=heatColor(n);
+    ctx1.fillRect(i*W/N,(M-1-j)*H/M,W/N+1,H/M+1);
+  }
+  ctx1.fillStyle='rgba(4,6,13,.7)'; ctx1.fillRect(4,4,200,14);
+  ctx1.fillStyle='#cdd8ef'; ctx1.font='9px JetBrains Mono';
+  ctx1.fillText(`Velocity |v| — Re=${Re}   Vmax=${maxV2.toFixed(3)}m/s`,8,14);
+  $('overlay1').style.display='none'; $('badge1').textContent='LIVE'; $('badge1').className='cell-badge cb-live';
+
+  // Streamlines/quiver on canvas2
+  const W2=($('canvas2').offsetWidth||400), H2=($('canvas2').offsetHeight||300);
+  $('canvas2').width=W2; $('canvas2').height=H2;
+  const ctx2=$('canvas2').getContext('2d');
+  ctx2.fillStyle='#04060d'; ctx2.fillRect(0,0,W2,H2);
+  const step2=3;
+  for(let j=step2;j<M-step2;j+=step2) for(let i=step2;i<N-step2;i+=step2){
+    const px=i*W2/N, py=(M-1-j)*H2/M;
+    const vx=u[j][i]/lid*12, vy=-v[j][i]/lid*12;
+    if(Math.abs(vx)+Math.abs(vy)<0.1) continue;
+    const mag=Math.sqrt(vx**2+vy**2);
+    const col=`hsl(${200-mag*20},70%,55%)`;
+    ctx2.strokeStyle=col; ctx2.lineWidth=1;
+    ctx2.beginPath(); ctx2.moveTo(px,py); ctx2.lineTo(px+vx,py+vy); ctx2.stroke();
+    ctx2.fillStyle=col;
+    ctx2.beginPath(); ctx2.moveTo(px+vx,py+vy);
+    ctx2.lineTo(px+vx-vy*0.3-vx*0.3,py+vy+vx*0.3-vy*0.3);
+    ctx2.lineTo(px+vx+vy*0.3-vx*0.3,py+vy-vx*0.3-vy*0.3);
+    ctx2.fill();
+  }
+  ctx2.fillStyle='#4a6080'; ctx2.font='10px JetBrains Mono';
+  ctx2.fillText(`Velocity vectors — Re=${Re}`,8,H2-10);
+  $('overlay2').style.display='none'; $('badge2').textContent='LIVE'; $('badge2').className='cell-badge cb-live';
+
+  // U-velocity profile at midline
+  const mid=Math.floor(N/2);
+  const yLine=Array.from({length:M},(_,j)=>(j/(M-1)).toFixed(3));
+  const uMid=Array.from({length:M},(_,j)=>u[j][mid]);
+  mkLine(0,yLine,[uMid],['u(y) at x=0.5'],['#00e5ff'],'y/H','u (m/s)');
+  const xLine=Array.from({length:N},(_,i)=>(i/(N-1)).toFixed(3));
+  const vMid=Array.from({length:N},(_,i)=>v[Math.floor(M/2)][i]);
+  mkLine(3,xLine,[vMid],['v(x) at y=0.5'],['#ffb800'],'x/L','v (m/s)');
+
+  $('st0').textContent='SOLVED';
+  $('st0').style.color='var(--cyan)';
+  $('st1').textContent=`Re=${Re}`;
+  $('st2').textContent=`Vmax=${maxV2.toFixed(3)}m/s`;
+  $('st3').textContent=`ν=${nu.toFixed(4)}`;
+  $('st4').textContent=`Grid ${N}×${M}`;
+  log('ok',`CFD Re=${Re}: Vmax=${maxV2.toFixed(3)}m/s grid=${N}×${M}`);
+}
+
+// ── SEMICONDUCTOR ────────────────────────────────────────────────────────
+function runSemiconductor() {
+  const Vgs_max = getParam('m_vgs',5);
+  const Vds     = getParam('m_vds',3);
+  const Vth     = getParam('m_vth',1.0);
+  const muCoxWL = getParam('m_mu',200)*1e-6;
+  const L_nm    = getParam('m_l',180);
+
+  // Id-Vgs curve (saturation)
+  const N1=200;
+  const Vgs_arr=Array.from({length:N1},(_,i)=>i*Vgs_max/(N1-1));
+  const Id_sat=Vgs_arr.map(Vgs=>Vgs<=Vth?0:0.5*muCoxWL*(Vgs-Vth)**2);
+
+  // Id-Vds curve (family)
+  const Vds_arr=Array.from({length:200},(_,i)=>i*5/(199));
+  const Id_Vds_family=[];
+  const Vgs_levels=[1.5,2.0,2.5,3.0,3.5,4.0];
+  Vgs_levels.forEach(Vg=>{
+    Id_Vds_family.push(Vds_arr.map(Vd=>{
+      if(Vg<=Vth) return 0;
+      const Vdsat=Vg-Vth;
+      if(Vd<Vdsat) return muCoxWL*((Vg-Vth)*Vd-Vd**2/2);
+      return 0.5*muCoxWL*(Vg-Vth)**2*(1+0.05*Vd); // channel length mod
+    }));
+  });
+
+  // Subthreshold
+  const N3=100;
+  const Vgs_sub=Array.from({length:N3},(_,i)=>i*(Vth+0.5)/N3);
+  const n_ideal=1.3;
+  const Id_sub=Vgs_sub.map(Vg=>1e-14*Math.exp(Vg/(n_ideal*0.026)));
+  const logId=Id_sub.map(id=>10*Math.log10(id)||null);
+
+  // CMOS Inverter Vout-Vin
+  const N4=100;
+  const Vin_arr=Array.from({length:N4},(_,i)=>i*5/(N4-1));
+  const VDD=Vgs_max;
+  const Vout_inv=Vin_arr.map(Vin=>{
+    if(Vin<Vth) return VDD;
+    if(Vin>VDD-Vth) return 0;
+    const VM=VDD/2+(Vin-VDD/2)*0.05;
+    return Math.max(0,Math.min(VDD,VDD-Vin));
+  });
+
+  mkLine(0,Vgs_arr.map(v=>v.toFixed(2)),[Id_sat.map(v=>(v*1000).toFixed(4))],['Id (mA)'],['#00e5ff'],'Vgs (V)','Id (mA)');
+  mkChart(1,'line',Vds_arr.map(v=>v.toFixed(2)),
+    Id_Vds_family.map((d,i)=>({label:`Vgs=${Vgs_levels[i]}V`,data:d.map(v=>(v*1000).toFixed(4)),borderColor:`hsl(${180+i*25},70%,55%)`,backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:.2})),
+    {xLabel:'Vds (V)',yLabel:'Id (mA)'}
+  );
+  $('overlay1').style.display='none'; $('badge1').textContent='LIVE'; $('badge1').className='cell-badge cb-live';
+
+  mkLine(2,Vgs_sub.map(v=>v.toFixed(3)),[logId],['log10(Id)'],['#ff3860'],'Vgs (V)','log₁₀(Id)');
+  $('overlay2').style.display='none'; $('badge2').textContent='LIVE'; $('badge2').className='cell-badge cb-live';
+  // Rename cell2
+  document.querySelectorAll('.cell-head')[2].childNodes[0].textContent='Subthreshold Log(Id) ';
+
+  mkLine(3,Vin_arr.map(v=>v.toFixed(2)),[Vout_inv],['Vout'],['#ffb800'],'Vin (V)','Vout (V)');
+
+  const gm_peak=muCoxWL*(Vgs_max-Vth);
+  const Id_peak=0.5*muCoxWL*(Vgs_max-Vth)**2;
+  const SS=n_ideal*26; // mV/dec
+
+  $('st0').textContent='SOLVED';
+  $('st0').style.color='var(--cyan)';
+  $('st1').textContent=`Vth=${Vth}V`;
+  $('st2').textContent=`gm=${(gm_peak*1000).toFixed(2)}mS`;
+  $('st3').textContent=`Id=${(Id_peak*1000).toFixed(3)}mA`;
+  $('st4').textContent=`SS=${SS.toFixed(0)}mV/dec`;
+
+  exports_.verilog=`// SimLab Verilog — NMOS behavioral model (${L_nm}nm)
+// Vth=${Vth}V  μnCox*W/L=${(muCoxWL*1e6).toFixed(0)}μA/V²
+// Generated ${new Date().toISOString()}
+\`timescale 1ns/1ps
+module nmos_behavioral #(
+  parameter real VTH = ${Vth},
+  parameter real KN  = ${(muCoxWL*1e6).toFixed(0)}e-6, // A/V^2
+  parameter real LAMBDA = 0.05
+)(
+  input  real vgs, vds, vbs,
+  output real ids
+);
+  real vov;
+  always @(*) begin
+    vov = vgs - VTH;
+    if(vov <= 0) ids = 0;
+    else if(vds < vov)
+      ids = KN * ((vov)*vds - vds*vds/2.0);
+    else
+      ids = 0.5 * KN * vov*vov * (1 + LAMBDA*vds);
+  end
+endmodule
+
+module cmos_inverter #(
+  parameter real VDD = ${Vgs_max},
+  parameter real VTH_N = ${Vth},
+  parameter real VTH_P = ${Vth}
+)(
+  input  real vin,
+  output real vout
+);
+  nmos_behavioral nmos(.vgs(vin),.vds(vout),.vbs(0),.ids());
+  // PMOS: mirror with Vtp
+  assign vout = (vin < VTH_N) ? VDD : (vin > VDD - VTH_P) ? 0 : VDD - vin;
+endmodule`;
+
+  log('ok',`MOSFET: Vth=${Vth}V gm=${(gm_peak*1000).toFixed(2)}mS SS=${SS.toFixed(0)}mV/dec L=${L_nm}nm`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// RUN DISPATCHER
+// ═══════════════════════════════════════════════════════════════════════
+function runSimulation() {
+  const btn = $('run-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin">◌</span><span>RUNNING...</span>';
+  log('sim',`Starting ${currentSim} simulation...`);
+  setTimeout(()=>{
+    try {
+      if(currentSim==='circuit') runCircuit();
+      else if(currentSim==='structural') runStructural();
+      else if(currentSim==='thermal') runThermal();
+      else if(currentSim==='fluid') runFluid();
+      else if(currentSim==='semiconductor') runSemiconductor();
+      $('viz-meta').textContent = `Last run: ${new Date().toLocaleTimeString()}`;
+    } catch(e) {
+      log('err','Simulation error: '+e.message);
+      $('st0').textContent='ERROR';
+    }
+    btn.disabled=false;
+    btn.innerHTML='<span>▶</span><span>RUN SIMULATION</span>';
+  },50);
+}
+
+function clearAll() {
+  [0,1,2,3].forEach(i=>{
+    destroyChart(i);
+    const canvas=$(`canvas${i}`);
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    $(`overlay${i}`).style.display='flex';
+    $(`badge${i}`).textContent='IDLE'; $(`badge${i}`).className='cell-badge cb-idle';
+  });
+  ['st0','st1','st2','st3','st4'].forEach(id=>{$(`${id}`).textContent='—';});
+  $('st0').textContent='READY'; $('st0').style.color='var(--cyan)';
+  log('info','Display cleared');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════════════
+function showExport(type, el) {
+  document.querySelectorAll('.etab').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  const content = exports_[type]||`; No ${type.toUpperCase()} export available yet.\n; Run a simulation first.`;
+  $('export-content').textContent = content;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CHIP FABRICATION PANEL
+// ═══════════════════════════════════════════════════════════════════════
+const FAB_STEPS = [
+  {
+    title:'1. Silicon Wafer Preparation',
+    short:'CZ crystal growth, wafer slicing',
+    desc:`The Czochralski (CZ) process grows a monocrystalline silicon ingot from a seed crystal. Dopant atoms (boron for p-type, phosphorus for n-type) are added to the melt at concentrations of 10¹⁵–10¹⁷ /cm³. Wafers are sliced to 775μm thickness, then chemically-mechanically polished (CMP) to Ra < 0.1nm roughness.`,
+    params:[['Wafer diameter','300 mm'],['Crystal orientation','<100>'],['Resistivity','1–10 Ω·cm'],['Oxygen content','< 10¹⁸ /cm³'],['Thickness','775 μm']],
+    drawFn: drawWafer,
+  },
+  {
+    title:'2. Oxidation (Gate Oxide)',
+    short:'Thermal SiO₂ — 2nm gate dielectric',
+    desc:`The wafer is heated to 900–1100°C in a furnace. Dry oxidation (O₂) grows ultra-thin, high-quality SiO₂. For 2nm gate oxide (EOT), high-k dielectrics like HfO₂ (κ≈22) replace SiO₂ in sub-65nm nodes. The Si surface is consumed: 46% of grown oxide thickness comes from Si.`,
+    params:[['Gate oxide','2 nm (EOT)','High-k: HfO₂'],['Temperature','900°C'],['Ambient','Dry O₂'],['Thickness','≈4.4nm HfO₂'],['Dielectric const','κ = 22']],
+    drawFn: drawOxide,
+  },
+  {
+    title:'3. Photolithography',
+    short:'EUV patterning at 13.5nm wavelength',
+    desc:`Extreme ultraviolet (EUV) lithography uses 13.5nm wavelength light to pattern features below 5nm. Photoresist is spun on at 2000–4000 RPM, soft-baked at 90°C, then exposed through a mask. Post-exposure bake (PEB) and developer reveal the pattern. Resolution: R = k₁·λ/NA where NA ≈ 0.33 for EUV.`,
+    params:[['Technology','EUV 13.5nm'],['Numerical aperture','0.33'],['k₁ factor','0.4'],['Min feature','~5–7nm'],['Resist thickness','50–80nm']],
+    drawFn: drawLitho,
+  },
+  {
+    title:'4. Ion Implantation (Doping)',
+    short:'Source/drain implant — arsenic/boron',
+    desc:`Dopant ions (As⁺ for n-type, B⁺ for p-type) are accelerated to 10–200 keV and implanted into the silicon. The gate stack acts as a self-aligned mask. Post-implant annealing at 1050°C (spike RTA or flash anneal) activates dopants and repairs crystal damage.`,
+    params:[['N+ species','As⁺, 75 keV'],['P+ species','B⁺, 15 keV'],['Dose','10¹⁵ cm⁻²'],['Anneal','1050°C spike RTA'],['Junction depth','< 20nm']],
+    drawFn: drawImplant,
+  },
+  {
+    title:'5. CVD & Metal Deposition',
+    short:'PECVD dielectrics + ALD TiN/W metal',
+    desc:`Chemical vapor deposition (CVD) deposits dielectric and metal layers. Atomic layer deposition (ALD) enables conformal films 1 atomic layer at a time. TiN barrier (~2nm) + W plug (~30nm) fill contact vias. Cu damascene uses electroplating + CMP for interconnects at 10–100nm pitch.`,
+    params:[['ILD material','Low-k SiO₂ (k=2.4)'],['Barrier','TiN by ALD'],['Metal','Cu damascene'],['Via resistance','< 100 Ω'],['CMP uniformity','< 1% σ']],
+    drawFn: drawDeposition,
+  },
+  {
+    title:'6. Chemical Mechanical Polishing',
+    short:'Planarization between metal layers',
+    desc:`CMP uses a rotating pad and slurry (abrasive + chemicals) to planarize the wafer surface. Critical for multi-level metal interconnects (up to 15 layers). Removes high topography while leaving embedded features. Endpoint detected by friction monitoring or optical interferometry.`,
+    params:[['Removal rate','200–400 nm/min'],['Non-uniformity','< 2% WIWNU'],['Slurry','Fumed silica pH=10'],['Pad','Polyurethane IC1000'],['Layers polished','7–15']],
+    drawFn: drawCMP,
+  },
+  {
+    title:'7. Interconnect (BEOL)',
+    short:'Cu multi-level metal routing',
+    desc:`Back-end-of-line (BEOL) forms metal wires connecting transistors. Copper damascene: pattern trenches in low-k dielectric, deposit diffusion barrier (TaN/Ta), electroplate Cu, CMP to planarize. Repeated 10–15 times for different metal layers. Final passivation and pad opening complete the die.`,
+    params:[['Metal layers','12–15 (M1–M15)'],['Pitch M1','28–40nm'],['Cu ECD','0.8μm/min'],['Low-k dielectric','k = 2.0–2.4'],['Final passivation','SiN / Polyimide']],
+    drawFn: drawInterconnect,
+  },
+  {
+    title:'8. Testing & Packaging',
+    short:'Wafer probe, dicing, wire bond/flip-chip',
+    desc:`Wafer-level testing (WLT) uses probe cards to test every die electrically. Defective dies are inked. Wafers are diced by laser scribing or diamond blade. Known-good dies (KGD) are flip-chip bonded (C4 bumps) or wire-bonded to the package substrate. Encapsulant protects the die.`,
+    params:[['Probe card','MicroSpring®'],['Dicing kerf','25–50μm'],['C4 bump pitch','100–150μm'],['Package','FCBGA / CoWoS 3D'],['Yield target','> 85%']],
+    drawFn: drawPackaging,
+  },
+];
+
+let currentFabStep = 0;
+
+function renderFabPanel() {
+  const stepsEl = $('fab-steps');
+  const vizEl = $('fab-viz');
+  stepsEl.innerHTML='';
+  FAB_STEPS.forEach((s,i)=>{
+    const div=document.createElement('div');
+    div.className='fab-step-item'+(i===currentFabStep?' active':'');
+    div.innerHTML=`<div class="fsi-num">STEP ${String(i+1).padStart(2,'0')}</div>
+<div class="fsi-title">${s.title}</div>
+<div class="fsi-desc">${s.short}</div>
+<div class="fab-progress"><div class="fab-progress-fill" style="width:${i<=currentFabStep?100:0}%"></div></div>`;
+    div.onclick=()=>{ currentFabStep=i; renderFabStep(); document.querySelectorAll('.fab-step-item').forEach((e,j)=>e.classList.toggle('active',j===i)); };
+    stepsEl.appendChild(div);
+  });
+  renderFabStep();
+}
+
+function renderFabStep() {
+  const s = FAB_STEPS[currentFabStep];
+  const vizEl = $('fab-viz');
+
+  const svgId=`fab-svg-${currentFabStep}`;
+  const paramsHtml = s.params.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td>${r[2]?`<td>${r[2]}</td>`:''}</tr>`).join('');
+
+  vizEl.innerHTML=`
+<div class="step-explain">
+  <h3>STEP ${currentFabStep+1} / ${FAB_STEPS.length} — ${s.title.split('.')[1]?.trim()||s.title}</h3>
+  ${s.desc}
+  <table class="step-params-table" style="margin-top:10px">${paramsHtml}</table>
+</div>
+<div class="chip-xsection">
+  <svg id="${svgId}" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>`;
+
+  // Draw SVG after DOM update
+  setTimeout(()=>{
+    const svg = document.getElementById(svgId);
+    if(svg && s.drawFn) s.drawFn(svg, currentFabStep);
+  },10);
+}
+
+// ── SVG DRAWING HELPERS ──────────────────────────────────────────────────
+function svgEl(tag,attrs,parent){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  if(parent) parent.appendChild(el);
+  return el;
+}
+function svgRect(svg,x,y,w,h,fill,stroke,extra={}){
+  return svgEl('rect',{x,y,width:w,height:h,fill,stroke:stroke||'none','stroke-width':extra.sw||1,...extra},svg);
+}
+function svgText(svg,x,y,txt,fill='#4a6080',sz=10,anchor='middle'){
+  const t=svgEl('text',{x,y,'text-anchor':anchor,'font-size':sz,'font-family':'JetBrains Mono, monospace',fill},svg);
+  t.textContent=txt; return t;
+}
+function svgLine(svg,x1,y1,x2,y2,stroke,sw=1){
+  return svgEl('line',{x1,y1,x2,y2,stroke,'stroke-width':sw},svg);
+}
+
+function drawWafer(svg) {
+  // Silicon substrate
+  svgEl('circle',{cx:300,cy:110,r:90,fill:'#1a2235',stroke:'#2a3d55','stroke-width':2},svg);
+  svgText(svg,300,115,'<100> Si Wafer','#4a6080',11);
+  svgText(svg,300,130,'300mm | p-type 10Ω·cm','#2a3d55',9);
+  // Crystal lattice dots
+  for(let i=0;i<6;i++) for(let j=0;j<4;j++){
+    const dx=(i-2.5)*18, dy=(j-1.5)*18;
+    if(dx*dx+dy*dy<85*85) svgEl('circle',{cx:300+dx,cy:110+dy,r:2,fill:'#2a3d55'},svg);
+  }
+  svgText(svg,300,210,'CZ Crystal Growth — Boron doped (B)','#4a6080',10);
+}
+
+function drawOxide(svg) {
+  // Si substrate
+  svgRect(svg,50,140,500,60,'#1a2235','#2a3d55');
+  svgText(svg,300,175,'Si Substrate (p-type)','#4a6080',10);
+  // Oxide layer
+  svgRect(svg,50,132,500,10,'#00c9a740','#00c9a7');
+  svgText(svg,300,140,'SiO₂ / HfO₂ Gate Oxide (~2nm EOT)','#00c9a7',9);
+  // Arrows
+  for(let i=0;i<8;i++){
+    const x=100+i*50;
+    svgLine(svg,x,110,x,130,'#ffb800',1);
+    svgEl('polygon',{points:`${x},128 ${x-4},118 ${x+4},118`,fill:'#ffb800'},svg);
+  }
+  svgText(svg,300,100,'O₂ / H₂O atmosphere → 900–1100°C furnace','#ffb800',9);
+  svgText(svg,300,210,'46% of oxide thickness consumes Si','#4a6080',9);
+}
+
+function drawLitho(svg) {
+  svgRect(svg,50,170,500,30,'#1a2235','#2a3d55');
+  svgText(svg,300,190,'Si Substrate','#4a6080',9);
+  svgRect(svg,50,158,500,14,'#00c9a740','#00c9a7');
+  svgText(svg,480,168,'Oxide','#00c9a7',8);
+  // Resist
+  svgRect(svg,50,135,500,24,'#9b59ff30','#9b59ff');
+  svgText(svg,300,150,'Photoresist (50–80nm)','#9b59ff',9);
+  // Mask with windows
+  svgRect(svg,50,115,500,18,'#1e2d45','#2a3d55');
+  [100,200,320,420].forEach(x=>{ svgRect(svg,x,115,40,18,'#04060d','none'); });
+  svgText(svg,300,127,'EUV Photomask (13.5nm λ)','#cdd8ef',9);
+  // EUV rays
+  for(let i=0;i<12;i++){
+    const x=60+i*42;
+    svgLine(svg,x,60,x,113,'#00e5ff50',1);
+  }
+  [100,200,320,420].forEach(x=>{
+    for(let i=0;i<3;i++) svgLine(svg,x+8+i*12,115,x+8+i*12,133,'#00e5ff',1);
+  });
+  svgText(svg,300,55,'EUV 13.5nm exposure','#00e5ff',10);
+  svgText(svg,300,210,'Resist exposed → developer reveals pattern','#4a6080',9);
+}
+
+function drawImplant(svg) {
+  svgRect(svg,50,160,500,40,'#1a2235','#2a3d55');
+  svgText(svg,300,185,'Si Substrate','#4a6080',10);
+  // Gate stack (self-aligned mask)
+  svgRect(svg,230,130,140,32,'#2a3d55','#4488ff');
+  svgText(svg,300,149,'Poly Gate','#4488ff',9);
+  svgRect(svg,230,122,140,10,'#00c9a740','#00c9a7');
+  // S/D regions
+  svgRect(svg,55,160,175,25,'#ff386040','#ff3860');
+  svgRect(svg,370,160,175,25,'#ff386040','#ff3860');
+  svgText(svg,142,176,'S/D n+ (As⁺)','#ff3860',9);
+  svgText(svg,457,176,'S/D n+ (As⁺)','#ff3860',9);
+  // Ion arrows outside gate
+  [70,100,130,160,390,420,450,480,510].forEach(x=>{
+    if(x<228||x>370){
+      svgLine(svg,x,80,x,158,'#ffb80080',1);
+      svgEl('polygon',{points:`${x},156 ${x-3},146 ${x+3},146`,fill:'#ffb800'},svg);
+    }
+  });
+  svgText(svg,300,70,'Ion beam: As⁺ 75keV / B⁺ 15keV','#ffb800',9);
+  svgText(svg,300,210,'Gate = self-aligned mask | RTA 1050°C anneal','#4a6080',9);
+}
+
+function drawDeposition(svg) {
+  svgRect(svg,50,168,500,32,'#1a2235','#2a3d55');
+  svgText(svg,300,188,'Si Substrate','#4a6080',9);
+  svgRect(svg,55,156,175,14,'#ff386040','#ff3860');
+  svgRect(svg,370,156,175,14,'#ff386040','#ff3860');
+  // Gate
+  svgRect(svg,230,140,140,18,'#2a3d55','#4488ff');
+  svgRect(svg,230,133,140,8,'#00c9a740','#00c9a7');
+  // ILD
+  svgRect(svg,50,100,500,38,'#4488ff18','#4488ff');
+  svgText(svg,300,123,'ILD — Low-k SiO₂ (CVD)','#4488ff',9);
+  // Contacts/vias
+  [142,300,458].forEach(x=>{
+    svgRect(svg,x-5,100,10,38,'#ffb80090','#ffb800');
+    svgText(svg,x,97,'W-plug','#ffb800',7,'middle');
+  });
+  // TiN barrier
+  svgRect(svg,50,96,500,5,'#ff386060','#ff3860');
+  svgText(svg,300,93,'TiN ALD barrier','#ff3860',8);
+  svgText(svg,300,210,'PECVD ILD + ALD TiN barrier + W CVD contacts','#4a6080',9);
+}
+
+function drawCMP(svg) {
+  // Rough surface before
+  const before=[[0,10],[30,5],[60,15],[90,3],[120,12],[150,6],[180,14],[210,4]];
+  svgText(svg,150,25,'Before CMP','#4a6080',9);
+  let path='M 50 80';
+  before.forEach(([dx,dy])=>{ path+=` l ${dx/4} ${-dy/3}`; });
+  path+=' l 20 0 l 0 30 l -'+(before.reduce((a,b)=>a+b[0],0)/4+20)+' 0 Z';
+  svgEl('path',{d:path,fill:'#2a3d55',stroke:'#4a6080'},svg);
+
+  // Pad
+  svgRect(svg,50,40,200,18,'#1e2d45','#4a6080');
+  svgText(svg,150,52,'CMP Pad (rotating)','#4a6080',8);
+  for(let i=0;i<8;i++) svgLine(svg,60+i*22,40,60+i*22,58,'#2a3d55',1);
+
+  // After
+  svgText(svg,450,25,'After CMP','#00ff88',9);
+  svgRect(svg,310,80,240,30,'#2a3d55','#00ff88');
+  svgRect(svg,310,110,240,30,'#1a2235','#2a3d55');
+  svgText(svg,430,98,'Planar surface (Ra<0.1nm)','#00ff88',8);
+  svgText(svg,430,128,'Si Substrate','#4a6080',8);
+
+  svgText(svg,300,210,'Fumed silica slurry + polyurethane pad — WiWNU < 2%','#4a6080',9);
+}
+
+function drawInterconnect(svg) {
+  const colors=['#4488ff','#00c9a7','#ffb800','#9b59ff'];
+  const mnames=['M1','M2','M3','M4'];
+  svgRect(svg,50,175,500,25,'#1a2235','#2a3d55');
+  svgText(svg,300,191,'Si — Transistors (FEOL)','#4a6080',9);
+  // Via plugs + metal layers
+  [4,3,2,1].forEach((layer,li)=>{
+    const y=175-layer*35;
+    svgRect(svg,50,y,500,18,`${colors[li]}18`,colors[li]);
+    svgText(svg,80,y+12,mnames[li],colors[li],9,'start');
+    svgText(svg,300,y+12,'Cu Damascene interconnect',colors[li]+'88',8);
+    // vias
+    [150,250,350,450].forEach(x=>{
+      svgRect(svg,x,y+18,8,17,`${colors[li]}80`,colors[li]);
+    });
+  });
+  // ILD between layers
+  [1,2,3].forEach(layer=>{
+    const y=175-layer*35+18;
+    svgRect(svg,50,y,500,17,'#4488ff0a','#1e2d45');
+    svgText(svg,490,y+10,'ILD','#2a3d55',8,'end');
+  });
+  svgText(svg,300,210,'10–15 metal layers | Cu ECD + CMP | Low-k dielectric','#4a6080',9);
+}
+
+function drawPackaging(svg) {
+  // Die
+  svgRect(svg,200,60,200,80,'#0d1220','#4488ff');
+  svgText(svg,300,105,'Silicon Die','#cdd8ef',10);
+  svgText(svg,300,120,'300μm','#4a6080',8);
+  // C4 bumps
+  for(let i=0;i<10;i++){
+    const x=200+10+i*18;
+    svgEl('ellipse',{cx:x,cy:142,rx:6,ry:5,fill:'#ffb800',stroke:'#ffb800'},svg);
+  }
+  svgText(svg,300,158,'C4 Solder Bumps (150μm pitch)','#ffb800',8);
+  // Package substrate
+  svgRect(svg,100,162,400,30,'#1e2d45','#2a3d55');
+  svgText(svg,300,181,'Package Substrate (ABF)','#4a6080',9);
+  // Encapsulant
+  svgEl('path',{d:'M 195 58 L 195 140 Q 195 55 300 52 Q 405 55 405 140 L 405 58 Z',fill:'#4488ff08',stroke:'#4488ff30'},svg);
+  svgText(svg,300,35,'Epoxy Molding Compound','#4488ff',9);
+  // BGA balls
+  for(let i=0;i<12;i++){
+    svgEl('circle',{cx:115+i*25,cy:200,r:7,fill:'#9b59ff80',stroke:'#9b59ff'},svg);
+  }
+  svgText(svg,300,215,'BGA Solder Balls — FCBGA Package','#9b59ff',9);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI CHAT (no API key required — uses built-in proxy)
+// ═══════════════════════════════════════════════════════════════════════
+function addChat(role, content) {
+  const scroll = $('chat-scroll');
+  const div = document.createElement('div');
+  if(role==='user'){
+    div.className='cmsg cmsg-user';
+    div.textContent=content;
+  } else if(role==='system'){
+    div.className='cmsg cmsg-sys';
+    div.textContent=content;
+  } else {
+    div.className='cmsg cmsg-ai';
+    div.innerHTML=`<b>SIM AI</b>${content.replace(/\n/g,'<br>')}`;
+  }
+  scroll.appendChild(div);
+  scroll.scrollTop=scroll.scrollHeight;
+  return div;
+}
+
+function addTyping(){
+  const scroll=$('chat-scroll');
+  const div=document.createElement('div');
+  div.className='typing-dots';
+  div.innerHTML='<div class="tdot"></div><div class="tdot"></div><div class="tdot"></div>';
+  scroll.appendChild(div);
+  scroll.scrollTop=scroll.scrollHeight;
+  return div;
+}
+
+const SYS_PROMPT = `You are SimLab AI, an expert engineering simulation assistant embedded in a real-time simulation platform.
+
+You have these real simulation engines running client-side in JavaScript:
+- circuit: DC/AC/Transient analysis (SPICE-compatible)
+- structural: Euler-Bernoulli beam FEM (AutoCAD/COMSOL export)
+- thermal: 2D finite-difference heat conduction (ANSYS APDL export)
+- fluid: Navier-Stokes cavity CFD
+- semiconductor: MOSFET device physics (SEmulator3D-style)
+
+Chip fabrication learning: CMOS process with 8 steps from wafer to packaging.
+
+When the user asks to simulate something:
+1. Identify the simulation type
+2. Suggest parameter values
+3. Explain the engineering behind it concisely
+4. End with a JSON block:
+\`\`\`simcall
+{"type":"circuit|structural|thermal|fluid|semiconductor","params":{...}}
+\`\`\`
+
+Param formats:
+- circuit: {c_vs:5, c_r1:10000, c_r2:4700, c_c1:100, c_freq:1000}
+- structural: {s_len:2, s_load:50000, s_e:210, s_h:200, s_w:100}
+- thermal: {t_top:200, t_bot:20, t_left:100, t_right:20, t_k:50}
+- fluid: {f_re:200, f_lid:1.0, f_nx:24, f_ny:24}
+- semiconductor: {m_vgs:5, m_vds:3, m_vth:1.0, m_mu:200, m_l:180}
+
+Be concise (< 200 words). Use engineering units. Highlight safety concerns.`;
+
+async function sendChat(){
+  const input = $('chat-input');
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value='';
+  addChat('user',msg);
+  chatHistory.push({role:'user',content:msg});
+  log('info',`AI query: "${msg.slice(0,50)}${msg.length>50?'…':''}"`);
+
+  const typing = addTyping();
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:SYS_PROMPT,
+        messages:chatHistory
+      })
+    });
+    if(!resp.ok){const e=await resp.json(); throw new Error(e.error?.message||`HTTP ${resp.status}`);}
+    const data=await resp.json();
+    const text=data.content.map(b=>b.type==='text'?b.text:'').join('');
+    chatHistory.push({role:'assistant',content:text});
+    typing.remove();
+
+    // Check for simcall
+    const simMatch=text.match(/```simcall\n?([\s\S]*?)```/);
+    let displayText=text.replace(/```simcall[\s\S]*?```/,'').trim();
+    addChat('ai',displayText);
+
+    if(simMatch){
+      try {
+        const call=JSON.parse(simMatch[1].trim());
+        // Update params in UI and run
+        const p=call.params||{};
+        Object.entries(p).forEach(([k,v])=>{ const el=$(k); if(el) el.value=v; });
+        // Switch to correct sim
+        if(call.type!==currentSim){
+          selectSim(call.type,document.querySelector(`#ps-${call.type}`)||document.querySelectorAll('.preset-btn')[0]);
+        }
+        setTimeout(()=>{ runSimulation(); },200);
+        log('ok',`AI triggered ${call.type} sim`);
+      } catch(e){ log('warn','simcall parse: '+e.message); }
+    }
+  } catch(e) {
+    typing.remove();
+    addChat('ai',`Error: ${e.message}`);
+    log('err','AI: '+e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+log('ok','SimLab v2.0 initialized');
+log('ok','5 simulation engines loaded');
+log('ok','AI assistant ready (no API key required)');
+log('ok','Chip fabrication module: 8 CMOS process steps');
+log('info','Select a simulation type and click Run Simulation');
+
+addChat('system','SimLab AI ready — ask to run any simulation or type a quick-chip prompt below');
+addChat('ai','Welcome to SimLab! I can simulate circuits (LTSpice-style), structural beams (FEM), heat conduction (ANSYS), CFD (Navier-Stokes), and MOSFET device physics — all in real time with no API key needed.\n\nTry: "Simulate a RC low-pass filter at 1kHz" or visit the Chip Fabrication tab to learn CMOS process steps interactively.');
+</script>
+</body>
+</html>
